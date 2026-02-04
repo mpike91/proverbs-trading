@@ -14,15 +14,101 @@
 const EMAIL_RECIPIENT = "mattp91@gmail.com";
 
 /**
- * Listener for Web App requests.
+ * =========================================================================
+ * API AUTHENTICATION
+ * =========================================================================
+ */
+function getApiPassword() {
+  return (
+    PropertiesService.getScriptProperties().getProperty("API_PASSWORD") || ""
+  );
+}
+
+function isAuthenticated(e) {
+  const password = getApiPassword();
+  if (!password) return true; // No password set = open access
+  const provided = e.parameter.password || "";
+  return provided === password;
+}
+
+function jsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
+}
+
+function errorResponse(message, code) {
+  return jsonResponse({ error: message, code: code || 400 });
+}
+
+/**
+ * =========================================================================
+ * WEB APP: GET REQUESTS
+ * =========================================================================
  */
 function doGet(e) {
-  if (!e.parameter.cmd || e.parameter.cmd !== "run") {
-    return ContentService.createTextOutput(
-      "Status: Standby. Ready for command.",
-    ).setMimeType(ContentService.MimeType.TEXT);
+  const action = e.parameter.action || e.parameter.cmd;
+
+  // Legacy refresh command (keep for backward compatibility)
+  if (action === "run") {
+    return handleRefresh(e);
   }
 
+  // New API endpoints
+  if (action === "screener") {
+    if (!isAuthenticated(e)) return errorResponse("Unauthorized", 401);
+    return handleGetScreener(e);
+  }
+
+  if (action === "monitor") {
+    if (!isAuthenticated(e)) return errorResponse("Unauthorized", 401);
+    return handleGetMonitor(e);
+  }
+
+  if (action === "metadata") {
+    if (!isAuthenticated(e)) return errorResponse("Unauthorized", 401);
+    return handleGetMetadata(e);
+  }
+
+  if (action === "refresh") {
+    if (!isAuthenticated(e)) return errorResponse("Unauthorized", 401);
+    return handleRefresh(e);
+  }
+
+  // Default status response
+  return jsonResponse({
+    status: "ready",
+    endpoints: ["screener", "monitor", "metadata", "refresh"],
+    note: "Use ?action=<endpoint> to access API",
+  });
+}
+
+/**
+ * =========================================================================
+ * WEB APP: POST REQUESTS
+ * =========================================================================
+ */
+function doPost(e) {
+  const action = e.parameter.action;
+
+  if (!isAuthenticated(e)) {
+    return errorResponse("Unauthorized", 401);
+  }
+
+  if (action === "setParams") {
+    return handleSetParams(e);
+  }
+
+  return errorResponse("Unknown action: " + action, 400);
+}
+
+/**
+ * =========================================================================
+ * API HANDLERS
+ * =========================================================================
+ */
+
+function handleRefresh(e) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) {
     return ContentService.createTextOutput(
@@ -41,6 +127,301 @@ function doGet(e) {
     ).setMimeType(ContentService.MimeType.TEXT);
   } finally {
     lock.releaseLock();
+  }
+}
+
+function handleGetScreener(e) {
+  try {
+    const dynamicSheet = getSheetOrThrow("Dynamic Data");
+    const optionsSheet = getSheetOrThrow("Options");
+    const stableSheet = getSheetOrThrow("Stable Data");
+    const historySheet = getSheetOrThrow("Historical Prices");
+    const exportSheet = getSheetOrThrow("Data_Export");
+
+    const numRows = getRowCount(dynamicSheet);
+
+    // Get symbols
+    const symbols = dynamicSheet.getRange(2, 2, numRows, 1).getValues().flat();
+
+    // Get Dynamic Data (columns C-R: 200-Day through Liquidity Score)
+    const dynamicData = dynamicSheet.getRange(2, 3, numRows, 16).getValues();
+
+    // Get Options Data (columns C-L: Price through Range)
+    const optionsData = optionsSheet.getRange(2, 3, numRows, 10).getValues();
+
+    // Get Stable Data (columns D-I: Sector through Next Earnings)
+    const stableData = stableSheet.getRange(2, 4, numRows, 6).getValues();
+
+    // Get Historical Prices for sparklines (last 200 days)
+    const historyLastCol = historySheet.getLastColumn();
+    const historyData = historySheet
+      .getRange(2, 3, numRows, Math.min(historyLastCol - 2, 200))
+      .getValues();
+
+    // Get last updated timestamp
+    const lastUpdated = exportSheet.getRange("A2").getValue();
+    const lastUpdatedTime = exportSheet.getRange("A3").getValue();
+
+    // Build response data
+    const data = [];
+    for (let i = 0; i < numRows; i++) {
+      const symbol = symbols[i];
+      if (!symbol) continue;
+
+      // Dynamic Data columns: 200-Day(0), Price(1), RSI(2), BB%(3), AltmanZ(4), SMATrend(5),
+      // Momentum(6), SMA50(7), SMA100(8), SMA200(9), PEG(10), AnalystUpside(11),
+      // OptionsScore(12), FundScore(13), TechScore(14), LiqScore(15)
+      const dyn = dynamicData[i];
+
+      // Options columns: Price(0), Exp(1), Strike(2), Bid(3), ROR(4), OI(5), AvgOI(6), MedianOI(7), Depth(8), Range(9)
+      const opt = optionsData[i];
+
+      // Stable columns: Sector(0), Industry(1), Description(2), ROIC(3), Piotroski(4), NextEarnings(5)
+      const stb = stableData[i];
+
+      // History for sparkline
+      const priceHistory = historyData[i].filter(
+        (v) => v !== "" && v !== null && !isNaN(v),
+      );
+
+      data.push({
+        symbol: symbol,
+        sector: stb[0] || "",
+        industry: stb[1] || "",
+        description: stb[2] || "",
+        price: parseFloat(dyn[1]) || 0,
+        nextEarnings: formatDate(stb[5]),
+
+        // Options
+        expiration: formatDate(opt[1]),
+        strike: parseFloat(opt[2]) || 0,
+        bid: parseFloat(opt[3]) || 0,
+        ror: opt[4] === "-" ? null : parseFloat(opt[4]) || 0,
+        oi: parseInt(opt[5]) || 0,
+        avgOi: parseFloat(opt[6]) || 0,
+        medianOi: parseFloat(opt[7]) || 0,
+        depth: opt[8] === "-" ? 0 : parseInt(opt[8]) || 0,
+        range: opt[9] === "-" ? 0 : parseInt(opt[9]) || 0,
+
+        // Fundamentals
+        roic: parseFloat(stb[3]) || 0,
+        piotroskiFScore: parseInt(stb[4]) || 0,
+
+        // Scores
+        optionsScore: parseFloat(dyn[12]) || 0,
+        fundamentalsScore: parseFloat(dyn[13]) || 0,
+        technicalsScore: parseFloat(dyn[14]) || 0,
+        liquidityScore: parseFloat(dyn[15]) || 0,
+
+        // Technicals
+        rsi: parseFloat(dyn[2]) || 0,
+        bbPercent: parseFloat(dyn[3]) || 0,
+        altmanZScore: parseFloat(dyn[4]) || 0,
+        smaTrend: parseInt(dyn[5]) || 0,
+        momentum: parseFloat(dyn[6]) || 0,
+        sma50: parseFloat(dyn[7]) || 0,
+        sma100: parseFloat(dyn[8]) || 0,
+        sma200: parseFloat(dyn[9]) || 0,
+        pegRatio: dyn[10] === "-" ? null : parseFloat(dyn[10]) || null,
+        analystUpside: dyn[11] === "-" ? null : parseFloat(dyn[11]) || null,
+
+        // Sparkline data
+        priceHistory: priceHistory.slice(-200),
+      });
+    }
+
+    return jsonResponse({
+      lastUpdated: formatTimestamp(lastUpdated, lastUpdatedTime),
+      count: data.length,
+      data: data,
+    });
+  } catch (err) {
+    return errorResponse("Failed to get screener data: " + err.toString(), 500);
+  }
+}
+
+function handleGetMonitor(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const monitorSheet = ss.getSheetByName("Monitor");
+
+    if (!monitorSheet) {
+      return jsonResponse({
+        lastUpdated: null,
+        count: 0,
+        positions: [],
+      });
+    }
+
+    const lastRow = monitorSheet.getLastRow();
+    if (lastRow < 2) {
+      return jsonResponse({
+        lastUpdated: formatTimestamp(
+          monitorSheet.getRange("A2").getValue(),
+          monitorSheet.getRange("A3").getValue(),
+        ),
+        count: 0,
+        positions: [],
+      });
+    }
+
+    // Get all monitor data (columns A-P)
+    const data = monitorSheet.getRange(2, 1, lastRow - 1, 16).getValues();
+
+    const positions = [];
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const symbol = row[3]; // Column D
+      if (!symbol || String(symbol).trim() === "") continue;
+
+      positions.push({
+        date: formatDate(row[0]), // A: Date
+        weeksOut: row[1], // B: Weeks Out
+        expiry: formatDate(row[2]), // C: Expiry
+        symbol: row[3], // D: Symbol
+        type: row[4], // E: Type (P, C, STOCK)
+        contracts: parseInt(row[5]) || 0, // F: # contracts
+        strike: parseFloat(row[6]) || 0, // G: Strike
+        currentPrice: parseFloat(row[7]) || 0, // H: Current Price
+        todayChange: parseFloat(row[8]) || 0, // I: Today %
+        itmOtm: parseFloat(row[9]) || 0, // J: ITM/OTM %
+        roll: row[10] || "-", // K: Roll
+        comments: row[11] || "", // L: Comments
+        assignedPrice: row[12] ? parseFloat(row[12]) : null, // M: Assigned
+        qualityScore: parseFloat(row[13]) || 0, // N: Quality Score
+        fundamentalsScore: parseFloat(row[14]) || 0, // O: Fund Score
+        technicalsScore: parseFloat(row[15]) || 0, // P: Tech Score
+      });
+    }
+
+    return jsonResponse({
+      lastUpdated: formatTimestamp(
+        monitorSheet.getRange("A2").getValue(),
+        monitorSheet.getRange("A3").getValue(),
+      ),
+      count: positions.length,
+      positions: positions,
+    });
+  } catch (err) {
+    return errorResponse("Failed to get monitor data: " + err.toString(), 500);
+  }
+}
+
+function handleGetMetadata(e) {
+  try {
+    const optionsSheet = getSheetOrThrow("Options");
+    const exportSheet = getSheetOrThrow("Data_Export");
+
+    // Get current expiry and ROR from Options sheet
+    const currentExpiry = optionsSheet.getRange("N2").getValue();
+    const currentRor = optionsSheet.getRange("O2").getValue();
+    const minOi = optionsSheet.getRange("P2").getValue();
+
+    // Get last updated
+    const lastUpdated = exportSheet.getRange("A2").getValue();
+    const lastUpdatedTime = exportSheet.getRange("A3").getValue();
+
+    return jsonResponse({
+      expiry: formatDate(currentExpiry),
+      ror: parseFloat(currentRor) || 0.01,
+      minOi: parseInt(minOi) || 100,
+      lastUpdated: formatTimestamp(lastUpdated, lastUpdatedTime),
+    });
+  } catch (err) {
+    return errorResponse("Failed to get metadata: " + err.toString(), 500);
+  }
+}
+
+function handleSetParams(e) {
+  try {
+    const optionsSheet = getSheetOrThrow("Options");
+
+    // Parse POST body
+    let params = {};
+    if (e.postData && e.postData.contents) {
+      params = JSON.parse(e.postData.contents);
+    }
+
+    // Also check URL parameters
+    const expiry = params.expiry || e.parameter.expiry;
+    const ror = params.ror || e.parameter.ror;
+
+    let updated = [];
+
+    if (expiry) {
+      // Parse and set expiry date
+      const expiryDate = new Date(expiry);
+      if (!isNaN(expiryDate.getTime())) {
+        optionsSheet.getRange("N2").setValue(expiryDate);
+        updated.push("expiry");
+      }
+    }
+
+    if (ror !== undefined && ror !== null) {
+      const rorValue = parseFloat(ror);
+      if (!isNaN(rorValue)) {
+        optionsSheet.getRange("O2").setValue(rorValue);
+        updated.push("ror");
+      }
+    }
+
+    if (updated.length === 0) {
+      return jsonResponse({
+        success: false,
+        message:
+          "No valid parameters provided. Use 'expiry' (date) and/or 'ror' (number).",
+      });
+    }
+
+    // Trigger refresh after updating params
+    const lock = LockService.getScriptLock();
+    if (lock.tryLock(10000)) {
+      try {
+        refreshLiveData();
+      } finally {
+        lock.releaseLock();
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      updated: updated,
+      message: "Parameters updated and data refreshed.",
+    });
+  } catch (err) {
+    return errorResponse("Failed to set parameters: " + err.toString(), 500);
+  }
+}
+
+/**
+ * =========================================================================
+ * API HELPERS
+ * =========================================================================
+ */
+
+function formatDate(value) {
+  if (!value || value === "-") return null;
+  if (value instanceof Date) {
+    return value.toISOString().split("T")[0];
+  }
+  // Try to parse string dates
+  const d = new Date(value);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
+  }
+  return String(value);
+}
+
+function formatTimestamp(date, time) {
+  if (!date) return null;
+  try {
+    const d = date instanceof Date ? date : new Date(date);
+    if (time instanceof Date) {
+      d.setHours(time.getHours(), time.getMinutes(), time.getSeconds());
+    }
+    return d.toISOString();
+  } catch (err) {
+    return null;
   }
 }
 
