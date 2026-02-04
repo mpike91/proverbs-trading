@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #213547;
+  background-color: #f8fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Table styles */
+.table-container {
+  @apply overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm;
+}
+
+table {
+  @apply w-full border-collapse text-sm;
+}
+
+th {
+  @apply sticky top-0 bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 border-b border-gray-200;
+}
+
+td {
+  @apply px-3 py-2 border-b border-gray-100;
+}
+
+tr:hover td {
+  @apply bg-gray-50;
+}
+
+/* Input styles */
+input[type="number"],
+input[type="text"],
+input[type="date"] {
+  @apply rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+select {
+  @apply rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500;
+}
+
+/* Button styles */
+.btn {
+  @apply inline-flex items-center justify-center rounded px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+}
+
+.btn-secondary {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500;
+}
+
+.btn-ghost {
+  @apply text-gray-600 hover:bg-gray-100 focus:ring-gray-500;
+}

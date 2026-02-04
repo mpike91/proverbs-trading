@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Build output
+web/dist/
+web/build/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+web/.env
+web/.env.local
+web/.env.*.local
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+web/*.tsbuildinfo
+
+# Cache
+.cache/
+.parcel-cache/
+web/.vite/
+
+# Testing
+coverage/
+web/coverage/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+.tmp/

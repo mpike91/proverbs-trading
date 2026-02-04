@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npm install)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(git reset:*)",
+      "Bash(git status:*)",
+      "Bash(git check-ignore:*)"
+    ]
+  }
+}
