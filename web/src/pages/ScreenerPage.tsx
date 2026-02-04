@@ -3,11 +3,9 @@ import { ScreenerTable } from '@/components/screener/ScreenerTable';
 import { LoadingOverlay } from '@/components/common/LoadingSpinner';
 import { useScreenerQuery } from '@/hooks/useScreenerQuery';
 import { useFilteredScreenerData } from '@/hooks/useFilteredData';
-import { useFilterStore } from '@/stores/filterStore';
 
 export function ScreenerPage() {
   const { data, isLoading, error } = useScreenerQuery();
-  const cashAmount = useFilterStore((s) => s.cashAmount);
   const filteredData = useFilteredScreenerData(data?.data || []);
 
   if (error) {
@@ -38,7 +36,7 @@ export function ScreenerPage() {
       {isLoading ? (
         <LoadingOverlay message="Loading screener data..." />
       ) : (
-        <ScreenerTable data={filteredData} cashAmount={cashAmount} />
+        <ScreenerTable data={filteredData} />
       )}
     </div>
   );

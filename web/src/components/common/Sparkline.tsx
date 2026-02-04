@@ -24,6 +24,10 @@ function SparklineComponent({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Reverse data if in reverse chronological order (oldest should be first for left-to-right display)
+    // API returns newest first, so we reverse to show oldest -> newest (left to right)
+    const chartData = [...data].reverse();
+
     // Handle high DPI displays
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
@@ -33,8 +37,8 @@ function SparklineComponent({
     ctx.scale(dpr, dpr);
 
     // Calculate bounds
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    const min = Math.min(...chartData);
+    const max = Math.max(...chartData);
     const range = max - min || 1;
 
     // Clear and draw
@@ -49,8 +53,8 @@ function SparklineComponent({
     const drawWidth = width - padding * 2;
     const drawHeight = height - padding * 2;
 
-    data.forEach((value, i) => {
-      const x = padding + (i / (data.length - 1)) * drawWidth;
+    chartData.forEach((value, i) => {
+      const x = padding + (i / (chartData.length - 1)) * drawWidth;
       const y = padding + drawHeight - ((value - min) / range) * drawHeight;
 
       if (i === 0) {
@@ -62,10 +66,10 @@ function SparklineComponent({
 
     ctx.stroke();
 
-    // Draw end point
+    // Draw end point (most recent price)
     const lastX = padding + drawWidth;
     const lastY =
-      padding + drawHeight - ((data[data.length - 1] - min) / range) * drawHeight;
+      padding + drawHeight - ((chartData[chartData.length - 1] - min) / range) * drawHeight;
     ctx.beginPath();
     ctx.arc(lastX, lastY, 2, 0, Math.PI * 2);
     ctx.fillStyle = color;

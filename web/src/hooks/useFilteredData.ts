@@ -68,10 +68,19 @@ export function useFilteredScreenerData(data: ScreenerRow[]) {
       const aVal = a[sortKey as keyof typeof a];
       const bVal = b[sortKey as keyof typeof b];
 
-      // Handle null values
-      if (aVal === null && bVal === null) return 0;
-      if (aVal === null) return 1;
-      if (bVal === null) return -1;
+      // Handle null/empty values - push to end
+      const aEmpty = aVal === null || aVal === undefined || aVal === '';
+      const bEmpty = bVal === null || bVal === undefined || bVal === '';
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+
+      // Handle date sorting for nextEarnings
+      if (sortBy === 'nextEarnings') {
+        const aDate = new Date(aVal as string).getTime();
+        const bDate = new Date(bVal as string).getTime();
+        return sortDirection === 'asc' ? aDate - bDate : bDate - aDate;
+      }
 
       // Handle string comparison
       if (typeof aVal === 'string' && typeof bVal === 'string') {
@@ -116,6 +125,11 @@ export function getSortLabel(column: SortColumn): string {
     bbPercent: 'BB %',
     altmanZScore: 'Altman Z',
     smaTrend: 'SMA Trend',
+    strike: 'Strike',
+    bid: 'Bid',
+    oi: 'Open Interest',
+    nextEarnings: 'Earnings',
+    symbol: 'Symbol',
   };
   return labels[column] || column;
 }

@@ -22,12 +22,13 @@ export async function apiRequest<T>(
 
   const fetchOptions: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
   };
 
+  // Only set Content-Type for POST requests to avoid CORS preflight on GET
   if (method === 'POST' && body) {
+    fetchOptions.headers = {
+      'Content-Type': 'application/json',
+    };
     fetchOptions.body = JSON.stringify(body);
   }
 

@@ -24,6 +24,7 @@ export function FilterPanel({ isLoading }: FilterPanelProps) {
     sortDirection,
     excludeExisting,
     cashAmount,
+    earningsWeekThreshold,
     fundamentalsWeight,
     technicalsWeight,
     liquidityWeight,
@@ -37,6 +38,7 @@ export function FilterPanel({ isLoading }: FilterPanelProps) {
     toggleSortDirection,
     setExcludeExisting,
     setCashAmount,
+    setEarningsWeekThreshold,
     setWeights,
   } = useFilterStore();
 
@@ -235,6 +237,20 @@ export function FilterPanel({ isLoading }: FilterPanelProps) {
                 min="0"
                 step="5"
                 className="w-20"
+              />
+            </div>
+
+            {/* Earnings Threshold */}
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Earnings (wks)</label>
+              <input
+                type="number"
+                value={earningsWeekThreshold}
+                onChange={(e) => setEarningsWeekThreshold(parseInt(e.target.value) || 0)}
+                min="0"
+                max="12"
+                className="w-16"
+                title="Highlight stocks with earnings within this many weeks"
               />
             </div>
 

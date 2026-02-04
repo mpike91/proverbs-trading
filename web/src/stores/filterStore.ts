@@ -11,7 +11,12 @@ export type SortColumn =
   | 'rsi'
   | 'bbPercent'
   | 'altmanZScore'
-  | 'smaTrend';
+  | 'smaTrend'
+  | 'strike'
+  | 'bid'
+  | 'oi'
+  | 'nextEarnings'
+  | 'symbol';
 
 interface FilterState {
   // Backend params (trigger refresh when changed)
@@ -27,6 +32,7 @@ interface FilterState {
   sortDirection: 'asc' | 'desc';
   excludeExisting: boolean;
   cashAmount: number;
+  earningsWeekThreshold: number;
 
   // Score weighting (percentages, should sum to 100)
   fundamentalsWeight: number;
@@ -48,6 +54,7 @@ interface FilterState {
   toggleSortDirection: () => void;
   setExcludeExisting: (exclude: boolean) => void;
   setCashAmount: (amount: number) => void;
+  setEarningsWeekThreshold: (weeks: number) => void;
   setWeights: (fund: number, tech: number, liq: number) => void;
   setExcludeList: (symbols: string[]) => void;
   resetFilters: () => void;
@@ -64,6 +71,7 @@ const defaultState = {
   sortDirection: 'desc' as const,
   excludeExisting: false,
   cashAmount: 30,
+  earningsWeekThreshold: 4,
   fundamentalsWeight: 25,
   technicalsWeight: 25,
   liquidityWeight: 50,
@@ -89,6 +97,7 @@ export const useFilterStore = create<FilterState>()(
         })),
       setExcludeExisting: (excludeExisting) => set({ excludeExisting }),
       setCashAmount: (cashAmount) => set({ cashAmount }),
+      setEarningsWeekThreshold: (earningsWeekThreshold) => set({ earningsWeekThreshold }),
       setWeights: (fundamentalsWeight, technicalsWeight, liquidityWeight) =>
         set({ fundamentalsWeight, technicalsWeight, liquidityWeight }),
       setExcludeList: (excludeList) => set({ excludeList }),
@@ -106,6 +115,7 @@ export const useFilterStore = create<FilterState>()(
         sortDirection: state.sortDirection,
         excludeExisting: state.excludeExisting,
         cashAmount: state.cashAmount,
+        earningsWeekThreshold: state.earningsWeekThreshold,
         fundamentalsWeight: state.fundamentalsWeight,
         technicalsWeight: state.technicalsWeight,
         liquidityWeight: state.liquidityWeight,
