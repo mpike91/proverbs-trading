@@ -19,9 +19,7 @@ const EMAIL_RECIPIENT = "mattp91@gmail.com";
  * =========================================================================
  */
 function getApiPassword() {
-  return (
-    PropertiesService.getScriptProperties().getProperty("API_PASSWORD") || ""
-  );
+  return PropertiesService.getScriptProperties().getProperty("API_PASSWORD") || "";
 }
 
 function isAuthenticated(e) {
@@ -32,9 +30,8 @@ function isAuthenticated(e) {
 }
 
 function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(
-    ContentService.MimeType.JSON,
-  );
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function errorResponse(message, code) {
@@ -79,7 +76,7 @@ function doGet(e) {
   return jsonResponse({
     status: "ready",
     endpoints: ["screener", "monitor", "metadata", "refresh"],
-    note: "Use ?action=<endpoint> to access API",
+    note: "Use ?action=<endpoint> to access API"
   });
 }
 
@@ -154,9 +151,7 @@ function handleGetScreener(e) {
 
     // Get Historical Prices for sparklines (last 200 days)
     const historyLastCol = historySheet.getLastColumn();
-    const historyData = historySheet
-      .getRange(2, 3, numRows, Math.min(historyLastCol - 2, 200))
-      .getValues();
+    const historyData = historySheet.getRange(2, 3, numRows, Math.min(historyLastCol - 2, 200)).getValues();
 
     // Get last updated timestamp
     const lastUpdated = exportSheet.getRange("A2").getValue();
@@ -180,9 +175,7 @@ function handleGetScreener(e) {
       const stb = stableData[i];
 
       // History for sparkline
-      const priceHistory = historyData[i].filter(
-        (v) => v !== "" && v !== null && !isNaN(v),
-      );
+      const priceHistory = historyData[i].filter(v => v !== "" && v !== null && !isNaN(v));
 
       data.push({
         symbol: symbol,
@@ -196,12 +189,12 @@ function handleGetScreener(e) {
         expiration: formatDate(opt[1]),
         strike: parseFloat(opt[2]) || 0,
         bid: parseFloat(opt[3]) || 0,
-        ror: opt[4] === "-" ? null : parseFloat(opt[4]) || 0,
+        ror: opt[4] === "-" ? null : (parseFloat(opt[4]) || 0),
         oi: parseInt(opt[5]) || 0,
         avgOi: parseFloat(opt[6]) || 0,
         medianOi: parseFloat(opt[7]) || 0,
-        depth: opt[8] === "-" ? 0 : parseInt(opt[8]) || 0,
-        range: opt[9] === "-" ? 0 : parseInt(opt[9]) || 0,
+        depth: opt[8] === "-" ? 0 : (parseInt(opt[8]) || 0),
+        range: opt[9] === "-" ? 0 : (parseInt(opt[9]) || 0),
 
         // Fundamentals
         roic: parseFloat(stb[3]) || 0,
@@ -222,19 +215,20 @@ function handleGetScreener(e) {
         sma50: parseFloat(dyn[7]) || 0,
         sma100: parseFloat(dyn[8]) || 0,
         sma200: parseFloat(dyn[9]) || 0,
-        pegRatio: dyn[10] === "-" ? null : parseFloat(dyn[10]) || null,
-        analystUpside: dyn[11] === "-" ? null : parseFloat(dyn[11]) || null,
+        pegRatio: dyn[10] === "-" ? null : (parseFloat(dyn[10]) || null),
+        analystUpside: dyn[11] === "-" ? null : (parseFloat(dyn[11]) || null),
 
         // Sparkline data
-        priceHistory: priceHistory.slice(-200),
+        priceHistory: priceHistory.slice(-200)
       });
     }
 
     return jsonResponse({
       lastUpdated: formatTimestamp(lastUpdated, lastUpdatedTime),
       count: data.length,
-      data: data,
+      data: data
     });
+
   } catch (err) {
     return errorResponse("Failed to get screener data: " + err.toString(), 500);
   }
@@ -249,19 +243,16 @@ function handleGetMonitor(e) {
       return jsonResponse({
         lastUpdated: null,
         count: 0,
-        positions: [],
+        positions: []
       });
     }
 
     const lastRow = monitorSheet.getLastRow();
     if (lastRow < 2) {
       return jsonResponse({
-        lastUpdated: formatTimestamp(
-          monitorSheet.getRange("A2").getValue(),
-          monitorSheet.getRange("A3").getValue(),
-        ),
+        lastUpdated: formatTimestamp(monitorSheet.getRange("A2").getValue(), monitorSheet.getRange("A3").getValue()),
         count: 0,
-        positions: [],
+        positions: []
       });
     }
 
@@ -275,33 +266,31 @@ function handleGetMonitor(e) {
       if (!symbol || String(symbol).trim() === "") continue;
 
       positions.push({
-        date: formatDate(row[0]), // A: Date
-        weeksOut: row[1], // B: Weeks Out
-        expiry: formatDate(row[2]), // C: Expiry
-        symbol: row[3], // D: Symbol
-        type: row[4], // E: Type (P, C, STOCK)
-        contracts: parseInt(row[5]) || 0, // F: # contracts
-        strike: parseFloat(row[6]) || 0, // G: Strike
+        date: formatDate(row[0]),           // A: Date
+        weeksOut: row[1],                    // B: Weeks Out
+        expiry: formatDate(row[2]),          // C: Expiry
+        symbol: row[3],                      // D: Symbol
+        type: row[4],                        // E: Type (P, C, STOCK)
+        contracts: parseInt(row[5]) || 0,    // F: # contracts
+        strike: parseFloat(row[6]) || 0,     // G: Strike
         currentPrice: parseFloat(row[7]) || 0, // H: Current Price
-        todayChange: parseFloat(row[8]) || 0, // I: Today %
-        itmOtm: parseFloat(row[9]) || 0, // J: ITM/OTM %
-        roll: row[10] || "-", // K: Roll
-        comments: row[11] || "", // L: Comments
+        todayChange: parseFloat(row[8]) || 0,  // I: Today %
+        itmOtm: parseFloat(row[9]) || 0,       // J: ITM/OTM %
+        roll: row[10] || "-",                  // K: Roll
+        comments: row[11] || "",               // L: Comments
         assignedPrice: row[12] ? parseFloat(row[12]) : null, // M: Assigned
-        qualityScore: parseFloat(row[13]) || 0, // N: Quality Score
+        qualityScore: parseFloat(row[13]) || 0,   // N: Quality Score
         fundamentalsScore: parseFloat(row[14]) || 0, // O: Fund Score
-        technicalsScore: parseFloat(row[15]) || 0, // P: Tech Score
+        technicalsScore: parseFloat(row[15]) || 0    // P: Tech Score
       });
     }
 
     return jsonResponse({
-      lastUpdated: formatTimestamp(
-        monitorSheet.getRange("A2").getValue(),
-        monitorSheet.getRange("A3").getValue(),
-      ),
+      lastUpdated: formatTimestamp(monitorSheet.getRange("A2").getValue(), monitorSheet.getRange("A3").getValue()),
       count: positions.length,
-      positions: positions,
+      positions: positions
     });
+
   } catch (err) {
     return errorResponse("Failed to get monitor data: " + err.toString(), 500);
   }
@@ -325,8 +314,9 @@ function handleGetMetadata(e) {
       expiry: formatDate(currentExpiry),
       ror: parseFloat(currentRor) || 0.01,
       minOi: parseInt(minOi) || 100,
-      lastUpdated: formatTimestamp(lastUpdated, lastUpdatedTime),
+      lastUpdated: formatTimestamp(lastUpdated, lastUpdatedTime)
     });
+
   } catch (err) {
     return errorResponse("Failed to get metadata: " + err.toString(), 500);
   }
@@ -368,8 +358,7 @@ function handleSetParams(e) {
     if (updated.length === 0) {
       return jsonResponse({
         success: false,
-        message:
-          "No valid parameters provided. Use 'expiry' (date) and/or 'ror' (number).",
+        message: "No valid parameters provided. Use 'expiry' (date) and/or 'ror' (number)."
       });
     }
 
@@ -386,8 +375,9 @@ function handleSetParams(e) {
     return jsonResponse({
       success: true,
       updated: updated,
-      message: "Parameters updated and data refreshed.",
+      message: "Parameters updated and data refreshed."
     });
+
   } catch (err) {
     return errorResponse("Failed to set parameters: " + err.toString(), 500);
   }
@@ -402,12 +392,12 @@ function handleSetParams(e) {
 function formatDate(value) {
   if (!value || value === "-") return null;
   if (value instanceof Date) {
-    return value.toISOString().split("T")[0];
+    return value.toISOString().split('T')[0];
   }
   // Try to parse string dates
   const d = new Date(value);
   if (!isNaN(d.getTime())) {
-    return d.toISOString().split("T")[0];
+    return d.toISOString().split('T')[0];
   }
   return String(value);
 }
